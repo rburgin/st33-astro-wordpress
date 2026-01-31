@@ -1,0 +1,83 @@
+---
+// Example: Fetch posts from WordPress REST API
+const WORDPRESS_API_URL = import.meta.env.WORDPRESS_API_URL || 'https://your-wordpress-site.com/wp-json/wp/v2';
+
+let posts = [];
+try {
+  const response = await fetch(`${WORDPRESS_API_URL}/posts?_embed&per_page=5`);
+  if (response.ok) {
+    posts = await response.json();
+  }
+} catch (error) {
+  console.error('Error fetching posts:', error);
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astro + WordPress</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #4338ca;
+        border-bottom: 2px solid #4338ca;
+        padding-bottom: 0.5rem;
+      }
+      .post {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        background: #f9fafb;
+      }
+      .post h2 {
+        margin-top: 0;
+        color: #1f2937;
+      }
+      .post-meta {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+      }
+      .no-posts {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+        background: #f3f4f6;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 Astro + WordPress Project</h1>
+    <p>Frontend powered by Astro on Cloudflare Pages, backend powered by WordPress on Hostinger.</p>
+    
+    <h2>Latest Posts</h2>
+    
+    {posts.length > 0 ? (
+      posts.map((post) => (
+        <article class="post">
+          <h2 set:html={post.title.rendered} />
+          <div class="post-meta">
+            Published: {new Date(post.date).toLocaleDateString()}
+          </div>
+          <div set:html={post.excerpt.rendered} />
+          <a href={`/post/${post.slug}`}>Read more →</a>
+        </article>
+      ))
+    ) : (
+      <div class="no-posts">
+        <p>No posts available. Configure your WordPress API URL in the environment variables.</p>
+      </div>
+    )}
+  </body>
+</html>
