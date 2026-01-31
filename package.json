@@ -14,8 +14,5 @@
     "@astrojs/cloudflare": "^11.1.0",
     "astro": "^4.16.18",
     "typescript": "^5.6.3"
-  },
-  "devDependencies": {
-    "wrangler": "^4.61.1"
   }
 }
