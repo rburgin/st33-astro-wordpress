@@ -1,18 +1,18 @@
 ---
-import type { WordPressPost } from '../lib/wordpress';
+import { getPageBySlug, getPosts } from '../lib/wordpress';
 
-// Example: Fetch posts from WordPress REST API
-const WORDPRESS_API_URL = import.meta.env.WORDPRESS_API_URL || 'https://your-wordpress-site.com/wp-json/wp/v2';
+// Fetch homepage content from WordPress "Home" page
+const homePage = await getPageBySlug('home');
 
-let posts: WordPressPost[] = [];
-try {
-  const response = await fetch(`${WORDPRESS_API_URL}/posts?_embed&per_page=5`);
-  if (response.ok) {
-    posts = await response.json();
-  }
-} catch (error) {
-  console.error('Error fetching posts:', error);
-}
+// Fetch recent posts/updates
+const posts = await getPosts(3);
+
+// Extract ACF fields (you'll configure these in WordPress)
+const acf = homePage?.acf || {};
+const heroTitle = acf.hero_title || 'Your Name';
+const heroSubtitle = acf.hero_subtitle || 'Digital Creator • Developer • Designer';
+const aboutText = acf.about_text || homePage?.content?.rendered || '<p>Welcome to my digital dossier.</p>';
+const socialLinks = acf.social_links || [];
 ---
 
 <!DOCTYPE html>
@@ -20,66 +20,437 @@ try {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Astro + WordPress</title>
+    <meta name="description" content={acf.meta_description || "Personal portfolio and digital dossier"} />
+    <title>{heroTitle} - Digital Dossier</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --primary: #2563eb;
+        --primary-dark: #1e40af;
+        --secondary: #64748b;
+        --bg-main: #ffffff;
+        --bg-alt: #f8fafc;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --border: #e2e8f0;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
+
       body {
-        font-family: system-ui, -apple-system, sans-serif;
-        max-width: 800px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        line-height: 1.7;
+        color: var(--text-primary);
+        background: var(--bg-main);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .container {
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 2rem;
-        line-height: 1.6;
+        padding: 0 1.5rem;
       }
-      h1 {
-        color: #4338ca;
-        border-bottom: 2px solid #4338ca;
-        padding-bottom: 0.5rem;
+
+      /* Header/Hero Section */
+      .hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4rem 0;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
       }
-      .post {
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 1.5rem;
+
+      .hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.5;
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+      }
+
+      .hero .tagline {
+        font-size: clamp(1.1rem, 2vw, 1.3rem);
+        opacity: 0.95;
+        font-weight: 300;
+        margin-bottom: 2rem;
+      }
+
+      .hero-links {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+      }
+
+      .btn-primary {
+        background: white;
+        color: var(--primary);
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .btn-outline {
+        border-color: white;
+        color: white;
+      }
+
+      .btn-outline:hover {
+        background: white;
+        color: var(--primary);
+      }
+
+      /* Main Content */
+      main {
+        padding: 4rem 0;
+      }
+
+      .section {
+        margin-bottom: 4rem;
+      }
+
+      .section-title {
+        font-size: 2rem;
+        font-weight: 600;
         margin-bottom: 1.5rem;
-        background: #f9fafb;
+        color: var(--text-primary);
+        position: relative;
+        padding-bottom: 0.75rem;
       }
-      .post h2 {
-        margin-top: 0;
-        color: #1f2937;
+
+      .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+        border-radius: 2px;
       }
+
+      /* About Section */
+      .about-content {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        align-items: start;
+      }
+
+      @media (min-width: 768px) {
+        .about-content {
+          grid-template-columns: 200px 1fr;
+        }
+      }
+
+      .avatar {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 auto;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .avatar-placeholder {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 5rem;
+        color: white;
+        margin: 0 auto;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .bio {
+        font-size: 1.05rem;
+        line-height: 1.8;
+      }
+
+      .bio p {
+        margin-bottom: 1rem;
+        color: var(--text-secondary);
+        font-size: 1.05rem;
+      }
+
+      /* Links Grid */
+      .links-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+      }
+
+      .link-card {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all 0.2s;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+
+      .link-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary);
+      }
+
+      .link-icon {
+        font-size: 2rem;
+        flex-shrink: 0;
+      }
+
+      .link-info h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+
+      .link-info p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Posts Grid */
+      .posts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .post-card {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .post-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary);
+      }
+
+      .post-card h3 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+      }
+
       .post-meta {
-        color: #6b7280;
+        color: var(--text-secondary);
         font-size: 0.875rem;
         margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
       }
-      .no-posts {
-        padding: 2rem;
+
+      .post-excerpt {
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        flex-grow: 1;
+      }
+
+      .post-excerpt p {
+        margin: 0;
+      }
+
+      .read-more {
+        color: var(--primary);
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+
+      .read-more:hover {
+        color: var(--primary-dark);
+        gap: 0.5rem;
+      }
+
+      .empty-state {
         text-align: center;
-        color: #6b7280;
-        background: #f3f4f6;
-        border-radius: 8px;
+        padding: 3rem 1.5rem;
+        background: var(--bg-alt);
+        border-radius: 0.75rem;
+        color: var(--text-secondary);
+      }
+
+      /* Footer */
+      footer {
+        background: var(--bg-alt);
+        border-top: 1px solid var(--border);
+        padding: 2rem 0;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
       }
     </style>
   </head>
   <body>
-    <h1>🚀 Astro + WordPress Project</h1>
-    <p>Frontend powered by Astro on Cloudflare Pages, backend powered by WordPress on Hostinger.</p>
-    
-    <h2>Latest Posts</h2>
-    
-    {posts.length > 0 ? (
-      posts.map((post) => (
-        <article class="post">
-          <h2 set:html={post.title.rendered} />
-          <div class="post-meta">
-            Published: {new Date(post.date).toLocaleDateString()}
-          </div>
-          <div set:html={post.excerpt.rendered} />
-          <a href={`/post/${post.slug}`}>Read more →</a>
-        </article>
-      ))
-    ) : (
-      <div class="no-posts">
-        <p>No posts available. Configure your WordPress API URL in the environment variables.</p>
+    <!-- Hero Section -->
+    <header class="hero">
+      <div class="container hero-content">
+        <h1>{heroTitle}</h1>
+        <p class="tagline">{heroSubtitle}</p>
+        <div class="hero-links">
+          <a href="#about" class="btn btn-primary">About Me</a>
+          <a href="#connect" class="btn btn-outline">Connect</a>
+        </div>
       </div>
-    )}
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+      <!-- About Section -->
+      <section id="about" class="section">
+        <h2 class="section-title">About Me</h2>
+        <div class="about-content">
+          <div>
+            {acf.avatar_image ? (
+              <img src={acf.avatar_image.url} alt={heroTitle} class="avatar" />
+            ) : (
+              <div class="avatar-placeholder">
+                👤
+              </div>
+            )}
+          </div>
+          <div class="bio" set:html={aboutText} />
+        </div>
+      </section>
+
+      <!-- Links Section -->
+      <section id="connect" class="section">
+        <h2 class="section-title">Connect With Me</h2>
+        <div class="links-grid">
+          {socialLinks.length > 0 ? (
+            socialLinks.map((link: any) => (
+              <a href={link.url} class="link-card" target="_blank" rel="noopener">
+                <div class="link-icon">{link.icon || '🔗'}</div>
+                <div class="link-info">
+                  <h3>{link.title}</h3>
+                  <p>{link.description}</p>
+                </div>
+              </a>
+            ))
+          ) : (
+            <>
+            <div class="link-icon">💻</div>
+            <div class="link-info">
+              <h3>GitHub</h3>
+              <p>Check out my code and projects</p>
+            </div>
+          </a>
+          
+          <a href="https://twitter.com/yourusername" class="link-card" target="_blank" rel="noopener">
+            <div class="link-icon">🐦</div>
+            <div class="link-info">
+              <h3>Twitter</h3>
+              <p>Follow me for updates and thoughts</p>
+            </div>
+          </a>
+          
+          <a href="https://linkedin.com/in/yourusername" class="link-card" target="_blank" rel="noopener">
+            <div class="link-icon">💼</div>
+            <div class="link-info">
+              <h3>LinkedIn</h3>
+              <p>Professional network and experience</p>
+            </div>
+          </a>
+          
+          <a href="mailto:your@email.com" class="link-card">
+            <div class="link-icon">✉️</div>
+            <div class="link-info">
+              <h3>Email</h3>
+              <p>Get in touch directly</p>
+            </div>
+          </a>
+            </>
+          )}
+        </div>
+      </section>
+
+      <!-- Recent Posts/Updates -->
+      {posts.length > 0 && (
+        <section class="section">
+          <h2 class="section-title">Recent Updates</h2>
+          <div class="posts-grid">
+            {posts.map((post) => (
+              <article class="post-card">
+                <h3 set:html={post.title.rendered} />
+                <div class="post-meta">
+                  <span>📅 {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                </div>
+                <div class="post-excerpt" set:html={post.excerpt.rendered} />
+                <a href={`/post/${post.slug}`} class="read-more">
+                  Read more →
+                </a>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <p>&copy; {new Date().getFullYear()} {heroTitle}. Built with Astro & WordPress.</p>
+      </div>
+    </footer>
   </body>
 </html>
