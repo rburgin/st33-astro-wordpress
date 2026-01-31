@@ -7,5 +7,10 @@ export default defineConfig({
   adapter: cloudflare({
     mode: 'directory',
   }),
-  site: 'https://your-site.pages.dev', // Update with your Cloudflare Pages URL
+  site: 'https://st33.com', // Your production domain
+  image: {
+    service: {
+      entrypoint: 'astro/assets/services/noop'
+    }
+  }
 });

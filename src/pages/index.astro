@@ -1,8 +1,10 @@
 ---
+import type { WordPressPost } from '../lib/wordpress';
+
 // Example: Fetch posts from WordPress REST API
 const WORDPRESS_API_URL = import.meta.env.WORDPRESS_API_URL || 'https://your-wordpress-site.com/wp-json/wp/v2';
 
-let posts = [];
+let posts: WordPressPost[] = [];
 try {
   const response = await fetch(`${WORDPRESS_API_URL}/posts?_embed&per_page=5`);
   if (response.ok) {
